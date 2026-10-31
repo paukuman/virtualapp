@@ -1,0 +1,78 @@
+package com.example.virtualapp.virtual
+
+import android.app.Activity
+import android.app.Application
+import android.app.Instrumentation
+import android.content.Context
+import android.content.Intent
+import android.content.res.Resources
+import android.os.Bundle
+import android.util.Log
+import android.view.ContextThemeWrapper
+
+/**
+ * Instrumentation pengganti. Tugas utama:
+ *  - Saat sistem menciptakan Activity melalui newActivity(), bila Intent membawa
+ *    target virtual, kita buat instance Activity milik aplikasi target memakai
+ *    DexClassLoader plugin, lalu menukar Resources-nya dengan Resources plugin.
+ */
+class VInstrumentation(
+    private val base: Instrumentation,
+    private val hostContext: Context
+) : Instrumentation() {
+
+    override fun onCreate(arguments: Bundle?) = base.onCreate(arguments)
+    override fun start() = base.start()
+    override fun onStart() = base.onStart()
+    override fun onException(obj: Any?, e: Throwable?): Boolean = base.onException(obj, e)
+
+    override fun newApplication(cl: ClassLoader?, className: String, context: Context?): Application =
+        base.newApplication(cl, className, context)
+
+    override fun newActivity(cl: ClassLoader?, className: String?, intent: Intent?): Activity {
+        val target = VirtualLauncher.resolveTarget(intent)
+        if (target != null) {
+            val plugin = VirtualCore.pluginManager.load(target.packageName)
+            if (plugin != null) {
+                try {
+                    val activity = base.newActivity(plugin.classLoader, target.className, intent)
+                    patchResources(activity, plugin.resources)
+                    Log.i(TAG, "Activity target dibuat: ${target.packageName}/${target.className}")
+                    return activity
+                } catch (t: Throwable) {
+                    Log.e(TAG, "Gagal membuat activity target, fallback ke stub", t)
+                }
+            }
+        }
+        return base.newActivity(cl, className, intent)
+    }
+
+    override fun callActivityOnCreate(activity: Activity?, icicle: Bundle?) =
+        base.callActivityOnCreate(activity, icicle)
+
+    override fun callActivityOnNewIntent(activity: Activity?, intent: Intent?) =
+        base.callActivityOnNewIntent(activity, intent)
+
+    override fun callActivityOnResume(activity: Activity?) = base.callActivityOnResume(activity)
+    override fun callActivityOnPause(activity: Activity?) = base.callActivityOnPause(activity)
+    override fun callActivityOnStop(activity: Activity?) = base.callActivityOnStop(activity)
+    override fun callActivityOnDestroy(activity: Activity?) = base.callActivityOnDestroy(activity)
+
+    /**
+     * Menukar Resources milik Activity (field ContextThemeWrapper.mResources)
+     * dengan Resources plugin. Ini trik minimal agar layout target bisa dimuat.
+     */
+    private fun patchResources(activity: Activity, pluginRes: Resources) {
+        try {
+            val field = ContextThemeWrapper::class.java.getDeclaredField("mResources")
+            field.isAccessible = true
+            field.set(activity, pluginRes)
+        } catch (t: Throwable) {
+            Log.w(TAG, "Gagal patch Resources via refleksi", t)
+        }
+    }
+
+    companion object {
+        private const val TAG = "VInstrumentation"
+    }
+}

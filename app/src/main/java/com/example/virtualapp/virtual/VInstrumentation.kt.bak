@@ -1,0 +1,81 @@
+package com.example.virtualapp.virtual
+
+import android.app.Activity
+import android.app.Application
+import android.app.Instrumentation
+import android.content.Context
+import android.content.Intent
+import android.os.Bundle
+import android.util.Log
+
+/**
+ * Instrumentation pengganti. Tugasnya:
+ *  1. Saat sistem benar-benar menciptakan Activity (newActivity), jika Activity
+ *     tersebut adalah StubActivity, kita ganti nama kelasnya menjadi Activity
+ *     asli milik aplikasi target, lalu pakai ClassLoader plugin.
+ *  2. (Opsional) mencegat execStartActivity agar intent ke komponen target
+ *     dibelokkan ke StubActivity.
+ */
+class VInstrumentation(
+    private val base: Instrumentation,
+    private val hostContext: Context
+) : Instrumentation() {
+
+    init {
+        // salin referensi internal bila tersedia (tidak krusial, base dipakai eksplisit)
+    }
+
+    override fun onCreate(arguments: Bundle?) = base.onCreate(arguments)
+
+    override fun start() = base.start()
+
+    override fun onStart() = base.onStart()
+
+    override fun onException(obj: Any?, e: Throwable?): Boolean = base.onException(obj, e)
+
+    override fun callActivityOnCreate(activity: Activity?, icicle: Bundle?) =
+        base.callActivityOnCreate(activity, icicle)
+
+    override fun newApplication(cl: ClassLoader?, className: String, context: Context?): Application =
+        base.newApplication(cl, className, context)
+
+    override fun newActivity(
+        cl: ClassLoader?,
+        className: String?,
+        intent: Intent?
+    ): Activity {
+        Log.d(TAG, "newActivity: className=$className intent=${intent?.component}")
+        val target = VirtualLauncher.resolveTarget(intent)
+        if (target != null) {
+            val plugin = VirtualCore.pluginManager.load(target.packageName)
+            if (plugin != null) {
+                val realClass = try {
+                    Class.forName(target.className, false, plugin.classLoader)
+                } catch (t: Throwable) {
+                    Log.e(TAG, "Kelas target tidak ditemukan: ${target.className}", t)
+                    null
+                }
+                if (realClass != null) {
+                    return base.newActivity(plugin.classLoader, target.className, intent)
+                }
+            }
+        }
+        // fallback normal
+        return base.newActivity(cl, className, intent)
+    }
+
+    override fun callActivityOnNewIntent(activity: Activity?, intent: Intent?) =
+        base.callActivityOnNewIntent(activity, intent)
+
+    override fun callActivityOnResume(activity: Activity?) = base.callActivityOnResume(activity)
+
+    override fun callActivityOnPause(activity: Activity?) = base.callActivityOnPause(activity)
+
+    override fun callActivityOnStop(activity: Activity?) = base.callActivityOnStop(activity)
+
+    override fun callActivityOnDestroy(activity: Activity?) = base.callActivityOnDestroy(activity)
+
+    companion object {
+        private const val TAG = "VInstrumentation"
+    }
+}
