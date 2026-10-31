@@ -2,7 +2,6 @@ package com.example.virtualapp.virtual
 
 import android.content.ComponentName
 import android.content.Intent
-import android.os.IBinder
 import android.util.Log
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
@@ -20,6 +19,7 @@ import java.lang.reflect.Proxy
 object ActivityManagerHook {
 
     private const val TAG = "ActivityManagerHook"
+    @Volatile
     private var installed = false
 
     fun install() {
@@ -27,27 +27,37 @@ object ActivityManagerHook {
         HiddenApiBypass.exempt()
 
         // Android 10+ : android.app.ActivityTaskManager.IActivityTaskManagerSingleton
+        // Interface: android.app.IActivityTaskManager
         if (installForSingleton(
-                "android.app.ActivityTaskManager",
-                "IActivityTaskManagerSingleton"
+                amClassName = "android.app.ActivityTaskManager",
+                singletonFieldName = "IActivityTaskManagerSingleton",
+                interfaceClassName = "android.app.IActivityTaskManager"
             )
         ) {
             installed = true
+            Log.i(TAG, "Hook IActivityTaskManager terpasang")
             return
         }
         // Android <= 9 : android.app.ActivityManager.IActivityManagerSingleton
+        // Interface: android.app.IActivityManager
         if (installForSingleton(
-                "android.app.ActivityManager",
-                "IActivityManagerSingleton"
+                amClassName = "android.app.ActivityManager",
+                singletonFieldName = "IActivityManagerSingleton",
+                interfaceClassName = "android.app.IActivityManager"
             )
         ) {
             installed = true
+            Log.i(TAG, "Hook IActivityManager terpasang")
             return
         }
         Log.e(TAG, "Tidak bisa menemukan singleton activity manager")
     }
 
-    private fun installForSingleton(amClassName: String, singletonFieldName: String): Boolean {
+    private fun installForSingleton(
+        amClassName: String,
+        singletonFieldName: String,
+        interfaceClassName: String
+    ): Boolean {
         return try {
             val amClass = Class.forName(amClassName)
             val singletonField = amClass.getDeclaredField(singletonFieldName).apply {
@@ -55,24 +65,22 @@ object ActivityManagerHook {
             }
             val singleton = singletonField.get(null) ?: return false
 
-            // android.util.Singleton<T> memiliki field mInstance
             val singletonClass = Class.forName("android.util.Singleton")
             val mInstanceField = singletonClass.getDeclaredField("mInstance").apply {
                 isAccessible = true
             }
             val original = mInstanceField.get(singleton) ?: return false
 
-            val interfaceClass = Class.forName("$amClassName\$I${amClassName.substringAfterLast('.')}")
+            val interfaceClass = Class.forName(interfaceClassName)
             val proxy = Proxy.newProxyInstance(
                 interfaceClass.classLoader,
-                arrayOf(interfaceClass, IBinder::class.java),
+                arrayOf(interfaceClass),
                 ActivityManagerInvocationHandler(original)
-            ) as IBinder
+            )
             mInstanceField.set(singleton, proxy)
-            Log.i(TAG, "Hook terpasang pada $amClassName.$singletonFieldName")
             true
         } catch (t: Throwable) {
-            Log.w(TAG, "Gagal hook $amClassName", t)
+            Log.w(TAG, "Gagal hook $amClassName.$singletonFieldName", t)
             false
         }
     }
@@ -83,9 +91,7 @@ object ActivityManagerHook {
 
         override fun invoke(proxy: Any?, method: Method?, args: Array<out Any?>?): Any? {
             try {
-                if (method != null && args != null) {
-                    rewriteIntentsInArgs(args)
-                }
+                if (args != null) rewriteIntentsInArgs(args)
             } catch (t: Throwable) {
                 Log.e(TAG, "rewrite gagal", t)
             }
@@ -99,9 +105,7 @@ object ActivityManagerHook {
         private fun rewriteIntentsInArgs(args: Array<out Any?>) {
             for (i in args.indices) {
                 val a = args[i]
-                if (a is Intent) {
-                    rewrite(a)
-                }
+                if (a is Intent) rewrite(a)
             }
         }
 
