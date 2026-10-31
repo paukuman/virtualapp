@@ -35,6 +35,9 @@ object VirtualCore {
         hostContext = application
         pluginManager = VPluginManager(application)
         hookInstrumentation()
+        // Hook activity manager agar navigasi internal app target ikut dibelokkan
+        // ke StubActivity (refleksi + dynamic proxy, tanpa hidden API compile-time).
+        ActivityManagerHook.install()
     }
 
     fun getContext(): Context = hostContext
