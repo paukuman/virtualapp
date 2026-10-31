@@ -40,6 +40,7 @@ class VInstrumentation(
             if (plugin != null) {
                 try {
                     val activity = base.newActivity(plugin.classLoader, target.className, intent)
+                    patchBaseContext(activity, plugin)
                     patchResources(activity, plugin.resources)
                     Log.i(TAG, "Activity target dibuat: ${target.packageName}/${target.className}")
                     return activity
