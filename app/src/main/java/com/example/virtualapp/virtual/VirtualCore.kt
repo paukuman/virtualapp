@@ -52,6 +52,20 @@ object VirtualCore {
         return dir
     }
 
+    // ---- Registry paket yang dikelola sandbox ----
+    private val virtualPackages = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+
+    fun registerVirtualPackage(packageName: String) {
+        virtualPackages.add(packageName)
+    }
+
+    fun unregisterVirtualPackage(packageName: String) {
+        virtualPackages.remove(packageName)
+    }
+
+    fun isVirtualPackage(packageName: String?): Boolean =
+        packageName != null && virtualPackages.contains(packageName)
+
     /**
      * Mengganti ActivityThread.mInstrumentation dengan [VInstrumentation].
      * Dilakukan via refleksi (API-stable sejak lama, meski bukan kontrak resmi).

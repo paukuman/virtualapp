@@ -3,10 +3,12 @@ package com.example.virtualapp.virtual
 import android.app.Activity
 import android.app.Application
 import android.app.Instrumentation
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.res.Resources
 import android.os.Bundle
+import android.os.IBinder
 import android.util.Log
 import android.view.ContextThemeWrapper
 
@@ -28,6 +30,43 @@ class VInstrumentation(
 
     override fun newApplication(cl: ClassLoader?, className: String, context: Context?): Application =
         base.newApplication(cl, className, context)
+
+    /**
+     * Mencegat setiap startActivity. Bila intent menunjuk ke komponen milik
+     * paket virtual, kita belokkan ke StubActivity + simpan target di extras.
+     */
+    override fun execStartActivity(
+        who: Context?,
+        contextThread: IBinder?,
+        token: IBinder?,
+        target: Activity?,
+        intent: Intent?,
+        requestCode: Int,
+        options: Bundle?
+    ): ActivityResult? {
+        try {
+            rewriteIfVirtual(intent)
+        } catch (t: Throwable) {
+            Log.e(TAG, "rewriteIfVirtual gagal", t)
+        }
+        return super.execStartActivity(
+            who, contextThread, token, target, intent, requestCode, options
+        )
+    }
+
+    private fun rewriteIfVirtual(intent: Intent?) {
+        if (intent == null) return
+        val comp = intent.component ?: return
+        val pkg = comp.packageName
+        if (!VirtualCore.isVirtualPackage(pkg)) return
+        // Jangan rewrite StubActivity kita sendiri
+        if (comp.className == VirtualCore.STUB_ACTIVITY) return
+
+        Log.d(TAG, "Rewriting ${comp.packageName}/${comp.className} -> StubActivity")
+        intent.putExtra(VirtualLauncher.EXTRA_TARGET_PKG, comp.packageName)
+        intent.putExtra(VirtualLauncher.EXTRA_TARGET_CLASS, comp.className)
+        intent.component = ComponentName(VirtualCore.STUB_PACKAGE, VirtualCore.STUB_ACTIVITY)
+    }
 
     override fun newActivity(cl: ClassLoader?, className: String?, intent: Intent?): Activity {
         val target = VirtualLauncher.resolveTarget(intent)

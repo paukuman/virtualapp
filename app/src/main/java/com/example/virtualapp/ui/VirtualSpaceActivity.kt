@@ -23,6 +23,7 @@ class VirtualSpaceActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         virtualManager = VirtualAppManager(this)
+        virtualManager.syncToEngine()
         repository = AppRepository(this)
 
         adapter = ClonedAppAdapter(

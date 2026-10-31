@@ -48,17 +48,34 @@ class VirtualSpaceActivity : AppCompatActivity() {
     }
 
     private fun runCloned(item: VirtualAppManager.ClonedApp) {
+        // Jalankan lewat engine virtualisasi (DexClassLoader + StubActivity),
+        // bukan peluncuran biasa. Fallback ke launcher normal bila gagal.
+        val startedInSandbox = com.example.virtualapp.virtual.VirtualLauncher
+            .launch(this, item.packageName)
+        if (startedInSandbox) {
+            Snackbar.make(
+                binding.root,
+                "\"${item.label}\" dijalankan di ruang virtual",
+                Snackbar.LENGTH_SHORT
+            ).show()
+            return
+        }
         val launchIntent = packageManager.getLaunchIntentForPackage(item.packageName)
         if (launchIntent == null) {
             Snackbar.make(
                 binding.root,
-                "Aplikasi \"${item.label}\" sudah tidak terpasang / tidak punya launcher",
+                "Gagal menjalankan \"${item.label}\" (sandbox & launcher tidak tersedia)",
                 Snackbar.LENGTH_LONG
             ).show()
             return
         }
         try {
             startActivity(launchIntent)
+            Snackbar.make(
+                binding.root,
+                "Sandbox gagal, dibuka dengan launcher biasa",
+                Snackbar.LENGTH_LONG
+            ).show()
         } catch (e: Exception) {
             Snackbar.make(binding.root, "Gagal menjalankan: ${e.message}", Snackbar.LENGTH_LONG).show()
         }

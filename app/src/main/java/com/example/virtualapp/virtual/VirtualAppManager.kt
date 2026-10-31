@@ -47,12 +47,19 @@ class VirtualAppManager(context: Context) {
         if (current.any { it.packageName == packageName }) return false
         current.add(ClonedApp(packageName, label, System.currentTimeMillis()))
         persist(current)
+        VirtualCore.registerVirtualPackage(packageName)
         return true
     }
 
     fun removeClone(packageName: String) {
         val current = listCloned().filterNot { it.packageName == packageName }
         persist(current)
+        VirtualCore.unregisterVirtualPackage(packageName)
+    }
+
+    /** Daftarkan ulang semua paket clone ke engine (dipanggil saat startup). */
+    fun syncToEngine() {
+        listCloned().forEach { VirtualCore.registerVirtualPackage(it.packageName) }
     }
 
     private fun persist(list: List<ClonedApp>) {
