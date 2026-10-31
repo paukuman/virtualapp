@@ -23,7 +23,9 @@ class VirtualContextWrapper(
     private val pluginAssets: AssetManager = plugin.resources.assets
     private val pluginClassLoader: ClassLoader = plugin.classLoader
 
-    private val dataDir: File by lazy { VirtualCore.getVirtualDataDir(plugin.packageName) }
+    private val isolatedDataDir: File by lazy { VirtualCore.getVirtualDataDir(plugin.packageName) }
+
+    override fun getDataDir(): File = isolatedDataDir
 
     override fun getPackageName(): String = plugin.packageName
 
