@@ -6,7 +6,6 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.content.res.AssetManager
 import android.content.res.Resources
-import android.util.Log
 import java.io.File
 
 /**
@@ -23,7 +22,9 @@ class VirtualContextWrapper(
     private val pluginAssets: AssetManager = plugin.resources.assets
     private val pluginClassLoader: ClassLoader = plugin.classLoader
 
-    private val isolatedDataDir: File by lazy { VirtualCore.getVirtualDataDir(plugin.packageName) }
+    private val isolatedDataDir: File by lazy {
+        VirtualCore.getVirtualDataDir(plugin.packageName)
+    }
 
     override fun getDataDir(): File = isolatedDataDir
 
@@ -41,23 +42,21 @@ class VirtualContextWrapper(
 
     override fun getPackageManager(): PackageManager = baseContext.packageManager
 
-    override fun getFilesDir(): File = File(dataDir, "files").apply { mkdirs() }
+    override fun getFilesDir(): File = File(isolatedDataDir, "files").apply { mkdirs() }
 
-    override fun getCacheDir(): File = File(dataDir, "cache").apply { mkdirs() }
+    override fun getCacheDir(): File = File(isolatedDataDir, "cache").apply { mkdirs() }
 
-    override fun getNoBackupFilesDir(): File = File(dataDir, "no_backup").apply { mkdirs() }
+    override fun getNoBackupFilesDir(): File =
+        File(isolatedDataDir, "no_backup").apply { mkdirs() }
 
-    override fun getCodeCacheDir(): File = File(dataDir, "code_cache").apply { mkdirs() }
+    override fun getCodeCacheDir(): File =
+        File(isolatedDataDir, "code_cache").apply { mkdirs() }
 
     override fun getDatabasePath(name: String): File =
-        File(File(dataDir, "databases").apply { mkdirs() }, name)
+        File(File(isolatedDataDir, "databases").apply { mkdirs() }, name)
 
     override fun getDir(name: String, mode: Int): File =
-        File(dataDir, "app_$name").apply { mkdirs() }
+        File(isolatedDataDir, "app_$name").apply { mkdirs() }
 
     override fun getApplicationContext(): Context = this
-
-    companion object {
-        private const val TAG = "VirtualContextWrapper"
-    }
 }
