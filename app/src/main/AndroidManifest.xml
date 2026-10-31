@@ -26,6 +26,10 @@
             android:name=".ui.AppDetailActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".ui.VirtualSpaceActivity"
+            android:exported="false" />
+
     </application>
 
 </manifest>

@@ -39,6 +39,10 @@ class MainActivity : AppCompatActivity() {
         binding.recyclerView.layoutManager = LinearLayoutManager(this)
         binding.recyclerView.adapter = adapter
 
+        binding.virtualSpaceButton.setOnClickListener {
+            startActivity(Intent(this, VirtualSpaceActivity::class.java))
+        }
+
         binding.searchInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) = Unit
             override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {
@@ -76,8 +80,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun cloneApp(app: AppInfo) {
         val added = virtualManager.clone(app.packageName, app.label)
-        val msg = if (added) "Cloned \"${app.label}\" ke ruang virtual"
-        else "\"${app.label}\" sudah ada di ruang virtual"
-        Snackbar.make(binding.root, msg, Snackbar.LENGTH_SHORT).show()
+        val msg = if (added) "\"${app.label}\" ditambahkan ke Ruang Virtual"
+        else "\"${app.label}\" sudah ada di Ruang Virtual"
+        Snackbar.make(binding.root, msg, Snackbar.LENGTH_LONG).setAction("Buka") {
+            startActivity(Intent(this, VirtualSpaceActivity::class.java))
+        }.show()
     }
 }
