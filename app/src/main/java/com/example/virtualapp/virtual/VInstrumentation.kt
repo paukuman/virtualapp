@@ -64,6 +64,21 @@ class VInstrumentation(
     override fun callActivityOnDestroy(activity: Activity?) = base.callActivityOnDestroy(activity)
 
     /**
+     * Menyuntikkan VirtualContextWrapper sebagai mBase Activity agar app target
+     * melihat package/resources/classloader/data dir miliknya sendiri.
+     */
+    private fun patchBaseContext(activity: Activity, plugin: VPluginManager.LoadedPlugin) {
+        try {
+            val wrapper = VirtualContextWrapper(hostContext, plugin)
+            val field = ContextThemeWrapper::class.java.getDeclaredField("mBase")
+            field.isAccessible = true
+            field.set(activity, wrapper)
+        } catch (t: Throwable) {
+            Log.w(TAG, "Gagal patch mBase Activity", t)
+        }
+    }
+
+    /**
      * Menukar Resources milik Activity (field ContextThemeWrapper.mResources)
      * dengan Resources plugin. Ini trik minimal agar layout target bisa dimuat.
      */
